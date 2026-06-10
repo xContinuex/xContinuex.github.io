@@ -33,11 +33,15 @@ function localReply(text) {
 let idSeq = 0
 const nextId = () => `${Date.now()}-${++idSeq}`
 
+// ===== 坑4修复：限制持久化消息条数，避免 localStorage 撑爆 =====
+const MAX_MESSAGES = 50  // 最多保留 50 条（约25轮对话）
+
 function scrollToBottom() {
-  setTimeout(() => {
+  // 用 rAF 替代 setTimeout(0)，等浏览器下一帧渲染完再滚，更稳
+  requestAnimationFrame(() => {
     const el = document.querySelector('.chat-messages')
     if (el) el.scrollTop = el.scrollHeight
-  }, 0)
+  })
 }
 
 export const useChatStore = defineStore('chat', {
@@ -83,6 +87,11 @@ export const useChatStore = defineStore('chat', {
 
       try {
         await streamChat(history, (delta) => {
+          // ===== 坑5修复：第一个字到达就关掉"思考中"，避免双气泡 =====
+          if (this.isThinking) {
+            this.isThinking = false
+          }
+
           // ===== 关键修复：找到 bot 消息，整体替换为新对象 =====
           const idx = this.messages.findIndex(m => m.id === botId)
           if (idx === -1) return
@@ -103,12 +112,22 @@ export const useChatStore = defineStore('chat', {
       } finally {
         this.isThinking = false
         scrollToBottom()
+        this._trim()  // 坑4：每次对话结束裁剪一次
       }
     },
 
     clear() {
       this.messages = []
       this.error = null
+    },
+
+    // ===== 坑4修复：手动触发裁剪 =====
+    // 每次发送完消息后，限制 messages 总数，防止 localStorage 5MB 限额爆掉
+    _trim() {
+      if (this.messages.length > MAX_MESSAGES) {
+        // 保留最后 MAX_MESSAGES 条
+        this.messages = this.messages.slice(-MAX_MESSAGES)
+      }
     }
   }
 })
