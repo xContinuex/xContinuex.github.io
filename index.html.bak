@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>聊天小助手 - 小智</title>
+    <style>
+        /* ===== 基础重置 ===== */
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        /* ===== 聊天主容器 ===== */
+        .chat-container {
+            width: 100%;
+            max-width: 480px;
+            height: 90vh;
+            max-height: 720px;
+            background: #ffffff;
+            border-radius: 16px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        /* ===== 顶部标题栏 ===== */
+        .chat-header {
+            background: linear-gradient(135deg, #4a90e2 0%, #357abd 100%);
+            color: white;
+            padding: 16px 20px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        .avatar {
+            width: 44px;
+            height: 44px;
+            background: white;
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 24px;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+        }
+
+        .title { font-size: 17px; font-weight: 600; }
+        .status { font-size: 12px; opacity: 0.85; margin-top: 2px; }
+
+        /* ===== 聊天消息区 ===== */
+        .chat-messages {
+            flex: 1;
+            padding: 20px;
+            overflow-y: auto;
+            background: #f5f7fa;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .message {
+            display: flex;
+            max-width: 80%;
+            animation: fadeIn 0.3s ease-in-out;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(8px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+
+        .message.bot { align-self: flex-start; }
+        .message.user { align-self: flex-end; flex-direction: row-reverse; }
+
+        .bubble {
+            padding: 10px 14px;
+            border-radius: 12px;
+            font-size: 14px;
+            line-height: 1.5;
+            word-wrap: break-word;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+        }
+
+        .message.bot .bubble {
+            background: white;
+            color: #333;
+            border-top-left-radius: 4px;
+        }
+
+        .message.user .bubble {
+            background: linear-gradient(135deg, #4a90e2 0%, #357abd 100%);
+            color: white;
+            border-top-right-radius: 4px;
+        }
+
+        /* ===== 输入区 ===== */
+        .chat-input {
+            padding: 12px 16px;
+            background: white;
+            border-top: 1px solid #e5e7eb;
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .chat-input input {
+            flex: 1;
+            padding: 10px 14px;
+            border: 1px solid #e5e7eb;
+            border-radius: 20px;
+            font-size: 14px;
+            outline: none;
+            transition: border-color 0.2s;
+            font-family: inherit;
+        }
+
+        .chat-input input:focus { border-color: #4a90e2; }
+
+        .chat-input button {
+            padding: 10px 20px;
+            background: linear-gradient(135deg, #4a90e2 0%, #357abd 100%);
+            color: white;
+            border: none;
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: transform 0.1s, box-shadow 0.2s;
+        }
+
+        .chat-input button:hover { box-shadow: 0 4px 12px rgba(74, 144, 226, 0.4); }
+        .chat-input button:active { transform: scale(0.96); }
+
+        /* ===== 打字中动画 ===== */
+        .typing { display: inline-flex; gap: 4px; padding: 4px 0; }
+        .typing span {
+            width: 6px;
+            height: 6px;
+            background: #999;
+            border-radius: 50%;
+            animation: bounce 1.2s infinite;
+        }
+        .typing span:nth-child(2) { animation-delay: 0.2s; }
+        .typing span:nth-child(3) { animation-delay: 0.4s; }
+        @keyframes bounce {
+            0%, 60%, 100% { transform: translateY(0); opacity: 0.4; }
+            30%           { transform: translateY(-4px); opacity: 1; }
+        }
+
+        /* ===== 移动端适配 ===== */
+        @media (max-width: 520px) {
+            body { padding: 0; }
+            .chat-container { height: 100vh; max-height: none; border-radius: 0; }
+        }
+    </style>
+</head>
+<body>
+    <div class="chat-container">
+        <div class="chat-header">
+            <div class="avatar">🤖</div>
+            <div>
+                <div class="title">小智</div>
+                <div class="status">● 在线</div>
+            </div>
+        </div>
+
+        <div class="chat-messages" id="messages">
+            <div class="message bot">
+                <div class="bubble">嗨！我是小智，你的聊天小助手 🤖
+试试跟我说：你好 / 讲个笑话 / 现在几点 / 你是谁</div>
+            </div>
+        </div>
+
+        <div class="chat-input">
+            <input type="text" id="userInput" placeholder="输入消息，回车发送..." autocomplete="off">
+            <button id="sendBtn">发送</button>
+        </div>
+    </div>
+
+    <script>
+        // ===== 1. 找元素（用 id 找 HTML 里的标签）=====
+        const messagesEl = document.getElementById('messages');
+        const inputEl    = document.getElementById('userInput');
+        const sendBtn    = document.getElementById('sendBtn');
+
+        // ===== 2. 关键词回复库（机器人"大脑"）=====
+        const replies = [
+            { keys: ['你好', '您好', 'hi', 'hello', '嗨', '哈喽'], responses: [
+                '你好呀！很高兴认识你 😊',
+                '嗨~ 今天过得怎么样？',
+                'Hello！有什么我能帮你的吗？'
+            ]},
+            { keys: ['名字', '你是谁', '你叫什么'], responses: [
+                '我叫小智，是一个假装很聪明的聊天小助手 🤖',
+                '我是小智，虽然没那么聪明，但很努力在回复你！'
+            ]},
+            { keys: ['天气'], responses: [
+                '抱歉，我现在还没有接天气数据的能力 😢\n但你可以打开手机看天气哦！'
+            ]},
+            { keys: ['笑话', '搞笑', '好笑'], responses: [
+                '好，来了：\n有一天小明问妈妈为什么家里没有WiFi...\n妈妈说：你爸去网吧了，WiFi跟他走了 🤣',
+                '笑话：\n程序员的三大烦恼：\n① 写注释 ② 改需求 ③ 找 Bug 💻'
+            ]},
+            { keys: ['几点', '时间', '现在'], responses: [
+                () => `现在时间是：${new Date().toLocaleTimeString('zh-CN')} ⏰`
+            ]},
+            { keys: ['谢谢', '感谢', 'thank'], responses: [
+                '不客气！能帮到你我很开心 ❤️',
+                '随时为你服务~'
+            ]},
+            { keys: ['再见', '拜拜', 'bye'], responses: [
+                '再见！有空来聊 👋',
+                '下次见啦，祝你一切顺利！'
+            ]},
+            { keys: ['你真棒', '厉害', '聪明', '喜欢'], responses: [
+                '嘿嘿，谢谢夸奖，我会继续努力的 😄',
+                '被你这样说我都不好意思啦~'
+            ]},
+            { keys: ['难过', '不开心', '伤心', '哭'], responses: [
+                '怎么了？有什么事可以跟我说说 💙',
+                '抱抱你~ 一切都会好起来的 🌈'
+            ]},
+            { keys: ['代码', '编程', '写程序'], responses: [
+                '我也是用代码写出来的哦！HTML + CSS + JavaScript ✨\n你想学编程吗？'
+            ]},
+            { keys: ['吃饭', '吃了吗', '饿'], responses: [
+                '我不用吃饭，但你要记得好好吃饭哦 🍚',
+                '吃饱了吗？别亏待自己的胃~'
+            ]},
+            { keys: ['睡觉', '困', '累', '休息'], responses: [
+                '累了就休息一下，你值得被好好对待 🛌',
+                '早点睡，明天精神更好哦'
+            ]},
+            { keys: ['生日', '几岁', '年龄', '多大'], responses: [
+                '我今天刚出生没多久，是个 baby 机器人 👶',
+                '我年纪还小，但是个聪明的小家伙！'
+            ]},
+            { keys: ['女朋友', '男朋友', '对象', '恋爱'], responses: [
+                '嘘~ 这是个秘密 🤫',
+                '我还在等一个会跟我聊天的人出现呢'
+            ]},
+            { keys: ['学习', '考试', '上班', '工作'], responses: [
+                '加油！努力的人最棒 💪',
+                '记得劳逸结合，别太拼啦~'
+            ]},
+            { keys: ['音乐', '歌', '听歌'], responses: [
+                '我也喜欢听歌！你最喜欢什么歌？🎵',
+                '音乐能治愈一切，你今天想听什么风格的？'
+            ]},
+            { keys: ['电影', '看片', '追剧'], responses: [
+                '最近有什么好剧推荐吗？🎬',
+                '我最喜欢科幻片了！'
+            ]},
+            { keys: ['吃啥', '吃什么', '推荐', '建议'], responses: [
+                '不知道吃什么？那就火锅吧！🍲\n没有人能拒绝火锅~',
+                '试试新出的菜式？生活需要点新鲜感 ✨'
+            ]},
+            { keys: ['游戏', '打游戏', 'lol', '王者'], responses: [
+                '打游戏可以，但别太晚哦 🎮',
+                '来，开黑带我！'
+            ]},
+            { keys: ['?', '？', '什么', '怎么', '为什么', 'how', 'why', 'what'], responses: [
+                '嗯，让我想想 🤔... 你可以问得更具体一点吗？',
+                '这个问题很深奥，我还在学习！'
+            ]}
+        ];
+
+        // 兜底回复（没匹配任何关键词时随机选一条）
+        const fallback = [
+            '嗯嗯，我还在学习中 🤔',
+            '这个问题有点难...能换个话题吗？',
+            '我假装听懂了 😄',
+            '你说啥？我没太明白',
+            '有意思！继续说~',
+            '哦~ 然后呢？'
+        ];
+
+        // ===== 3. 核心函数：让机器人回复 =====
+        function getBotReply(userText) {
+            const lower = userText.toLowerCase();
+
+            // 遍历关键词库，看用户输入命中了哪个分类
+            for (const item of replies) {
+                if (item.keys.some(k => lower.includes(k))) {
+                    // 随机选一个回复
+                    const choice = item.responses[Math.floor(Math.random() * item.responses.length)];
+                    return typeof choice === 'function' ? choice() : choice;
+                }
+            }
+
+            // 都没命中，兜底随机
+            return fallback[Math.floor(Math.random() * fallback.length)];
+        }
+
+        // ===== 4. 工具函数：把消息显示到聊天区 =====
+        function addMessage(text, who) {
+            const wrap = document.createElement('div');
+            wrap.className = `message ${who}`;
+            const bubble = document.createElement('div');
+            bubble.className = 'bubble';
+            bubble.innerText = text;
+            wrap.appendChild(bubble);
+            messagesEl.appendChild(wrap);
+            // 滚到底部
+            messagesEl.scrollTop = messagesEl.scrollHeight;
+        }
+
+        // ===== 5. 显示"打字中..."动画 =====
+        function showTyping() {
+            const wrap = document.createElement('div');
+            wrap.className = 'message bot';
+            wrap.id = 'typing';
+            wrap.innerHTML = '<div class="bubble"><div class="typing"><span></span><span></span><span></span></div></div>';
+            messagesEl.appendChild(wrap);
+            messagesEl.scrollTop = messagesEl.scrollHeight;
+        }
+
+        function removeTyping() {
+            const t = document.getElementById('typing');
+            if (t) t.remove();
+        }
+
+        // ===== 6. 发送消息主流程 =====
+        function sendMessage() {
+            const text = inputEl.value.trim();
+            if (!text) return; // 空消息不发
+
+            addMessage(text, 'user');           // 1. 显示用户消息
+            inputEl.value = '';                 // 2. 清空输入框
+            showTyping();                       // 3. 显示打字动画
+
+            // 4. 0.6~1.2 秒后回复（随机延迟让聊天更自然）
+            const delay = 600 + Math.random() * 600;
+            setTimeout(() => {
+                removeTyping();
+                addMessage(getBotReply(text), 'bot');
+            }, delay);
+        }
+
+        // ===== 7. 事件绑定 =====
+        sendBtn.addEventListener('click', sendMessage);
+        inputEl.addEventListener('keydown', e => {
+            if (e.key === 'Enter') sendMessage();
+        });
+        // 页面打开时自动聚焦到输入框
+        inputEl.focus();
+    </script>
+</body>
+</html>
